@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'personal_data_protected.dart';
+import 'privacy_notice.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -16,6 +18,7 @@ class _RegisterPageState extends State<RegisterPage> {
   String _confirmPassword = '';
   String _role = 'Gerente';
   bool _acceptedPrivacy = false;
+  bool _acceptedPersonalData = false;
 
   void _submit() {
     if (_formKey.currentState!.validate() && _acceptedPrivacy) {
@@ -34,55 +37,27 @@ class _RegisterPageState extends State<RegisterPage> {
         title: const Text('Aviso de Privacidad'),
         content: SingleChildScrollView(
           child: Text(
-            '''
-Aviso de Privacidad – Kitchen Orchestrator App
-Última actualización: 20 de octubre de 2025
+            privacyNotice
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
 
-1. Datos personales que se recaban
-La aplicación Kitchen Orchestrator recopila los siguientes datos personales de los empleados registrados:
-- Nombre completo
-- Correo electrónico institucional
-- Contraseña (almacenada de forma cifrada)
-
-2. Finalidad del tratamiento
-Los datos personales son utilizados exclusivamente para:
-- Autenticación y acceso seguro a la aplicación
-- Identificación del usuario dentro del sistema
-- Gestión de roles y permisos en el entorno laboral digital
-
-3. Consentimiento informado
-El usuario otorga su consentimiento explícito al registrarse en la aplicación y aceptar este aviso de privacidad.
-
-4. Seguridad de los datos
-Se implementan medidas técnicas y administrativas para proteger los datos personales, incluyendo:
-- Cifrado de contraseñas mediante algoritmos seguros
-- Comunicación cifrada mediante HTTPS
-- Control de acceso basado en roles
-
-5. Derechos ARCO
-Los usuarios pueden ejercer en cualquier momento sus derechos de:
-- Acceso
-- Rectificación
-- Cancelación
-- Oposición
-
-Para ejercer estos derechos, el usuario puede enviar una solicitud al correo: privacidad@kitchenorchestrator.dev
-
-6. Retención de datos
-Los datos personales se conservarán únicamente durante el tiempo necesario para cumplir con las finalidades descritas.
-
-7. Transferencia de datos
-No se realizan transferencias de datos personales a terceros sin el consentimiento previo del usuario.
-
-8. Notificación de brechas de seguridad
-En caso de una brecha de seguridad, se notificará al usuario indicando:
-- Naturaleza de la brecha
-- Datos comprometidos
-- Medidas correctivas adoptadas
-
-9. Acceso a la política
-Este aviso de privacidad está disponible en la pantalla de registro y en el menú de configuración.
-''',
+  void _showPersonalDataModal() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Aviso de protección de datos personales'),
+        content: SingleChildScrollView(
+          child: Text(
+            personalDataProtected
           ),
         ),
         actions: [
@@ -160,9 +135,20 @@ Este aviso de privacidad está disponible en la pantalla de registro y en el men
                 onPressed: _showPrivacyModal,
                 child: const Text('Ver aviso de privacidad'),
               ),
+              const SizedBox(height: 16),
+              CheckboxListTile(
+                title: const Text('Acepto el aviso de protección de datos personales'),
+                value: _acceptedPersonalData,
+                onChanged: (value) => setState(() => _acceptedPersonalData = value ?? false),
+              ),
+              TextButton(
+                onPressed: _showPersonalDataModal,
+                child: const Text('Ver aviso de protección de datos personales'),
+              ),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: _acceptedPrivacy ? _submit : null,
+                onPressed: 
+                  (_acceptedPrivacy && _acceptedPersonalData ) ? _submit : null,
                 child: const Text('Registrarse'),
               ),
             ],
