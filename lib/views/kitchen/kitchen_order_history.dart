@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class KitchenOrderHistory extends StatefulWidget {
-  const KitchenOrderHistory({Key? key}) : super(key: key);
+  final String restaurantName;
+  const KitchenOrderHistory({
+    super.key,
+    required this.restaurantName,
+  });
 
   @override
   State<KitchenOrderHistory> createState() => _KitchenOrderHistoryState();
@@ -136,11 +140,11 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.history),
             SizedBox(width: 8),
-            Text('Historial de Pedidos'),
+            Text('Historial de Pedidos para: ${widget.restaurantName}'),
           ],
         ),
         backgroundColor: Colors.deepOrange,

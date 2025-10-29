@@ -44,3 +44,6 @@ app.*.map.json
 
 # Archivos de configuración sensibles
 .env
+
+# Firebase
+/android/app/google-services.json
