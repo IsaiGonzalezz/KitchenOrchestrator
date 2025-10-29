@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 
 class UsersView extends StatelessWidget {
-  const UsersView({super.key});
+  final String restaurantName;
+  const UsersView({
+    super.key,
+    required this.restaurantName
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestión de Usuarios'),
+        title: Text('Gestión de Usuarios para $restaurantName'),
         centerTitle: true,
       ),
       body: Padding(

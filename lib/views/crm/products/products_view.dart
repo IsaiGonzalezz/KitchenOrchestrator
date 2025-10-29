@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 
 class ProductsView extends StatelessWidget {
-  const ProductsView({super.key});
+  final String restaurantName;
+  const ProductsView({
+    super.key,
+    required this.restaurantName
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestión de Productos'),
+        title: Text('Gestión de Productos para: $restaurantName'),
         centerTitle: true,
       ),
       body: Padding(

@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
 
 class DashboardView extends StatelessWidget {
-  const DashboardView({super.key});
+
+  final String restaurantName;
+  final String role;
+
+  const DashboardView({
+    super.key,
+    required this.restaurantName,
+    required this.role,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -15,6 +23,19 @@ class DashboardView extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              'Bienvenido a',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            Text(
+              restaurantName, // <-- DATO USADO
+              style: Theme.of(context).textTheme.headlineLarge,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Tu rol es: $role', // <-- DATO USADO
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
             const Text(
               "KPIs",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),

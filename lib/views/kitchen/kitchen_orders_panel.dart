@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 
 class KitchenOrdersPanel extends StatefulWidget {
-  const KitchenOrdersPanel({Key? key}) : super(key: key);
+  final String restaurantName;
+  const KitchenOrdersPanel({
+    super.key,
+    required this.restaurantName,
+  });
 
   @override
   State<KitchenOrdersPanel> createState() => _KitchenOrdersPanelState();
 }
 
 class _KitchenOrdersPanelState extends State<KitchenOrdersPanel> {
+
   String selectedFilter = 'todos';
 
   // Mock data - reemplazar con datos reales de tu backend
@@ -93,11 +98,11 @@ class _KitchenOrdersPanelState extends State<KitchenOrdersPanel> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.restaurant_menu),
             SizedBox(width: 8),
-            Text('Panel de Cocina'),
+            Text('Panel de Órdenes para: ${widget.restaurantName}'),
           ],
         ),
         backgroundColor: Colors.deepOrange,

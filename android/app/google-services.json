@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "450708487263",
+    "firebase_url": "https://evalemili-default-rtdb.firebaseio.com",
+    "project_id": "evalemili",
+    "storage_bucket": "evalemili.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:450708487263:android:4c6d3404dbd7c6c8482fea",
+        "android_client_info": {
+          "package_name": "com.example.kitchen_orchestrator"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCyEKm_SM9VygWBcWOZSr_32jeKrvG811U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
