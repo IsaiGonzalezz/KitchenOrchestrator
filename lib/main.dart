@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 // Imports de Firebase
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_database/firebase_database.dart'; // <-- ¡IMPORTANTE! Faltaba este
+import 'package:firebase_database/firebase_database.dart'; 
 import 'firebase_options.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-// Imports de tus Vistas
+// Imports vistas
 import 'views/kitchen/kitchen_orders_panel.dart';
 import 'views/kitchen/kitchen_order_detail.dart';
 import 'views/kitchen/kitchen_order_history.dart';
@@ -19,7 +19,7 @@ import 'views/signup/signup.dart';
 
 
 void main() async {
-  // Tu inicialización de Firebase (¡perfecta!)
+  // inicialización de Firebase 
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -39,10 +39,10 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       
-      // 1. Ruta inicial: /login
+      //  Ruta inicial: /login
       initialRoute: '/login',
 
-      // 2. Mapa de rutas
+      // Mapa de rutas
       routes: {
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
@@ -54,9 +54,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------
-// ESTA ES AHORA LA PANTALLA PRINCIPAL (POST-LOGIN)
-// -----------------------------------------------------------------
 class NavigationHome extends StatefulWidget {
   const NavigationHome({super.key});
 
@@ -64,10 +61,6 @@ class NavigationHome extends StatefulWidget {
   State<NavigationHome> createState() => _NavigationHomeState();
 }
 
-// 
-// ¡AQUÍ ES DONDE DEBE IR TODA LA LÓGICA!
-// Todo va DENTRO de las llaves { } de _NavigationHomeState
-//
 class _NavigationHomeState extends State<NavigationHome> {
   
   // 1. Variables de estado
@@ -78,16 +71,8 @@ class _NavigationHomeState extends State<NavigationHome> {
   bool _isLoading = true; // Empezamos en modo "cargando"
   final _storage = const FlutterSecureStorage();
   
-  // Lista de títulos (esta puede ser fija)
-  final List<String> _titles = [
-    'Dashboard',
-    'Panel de Órdenes',
-    'Historial',
-    'Productos',
-    'Usuarios',
-  ];
 
-  // 2. initState: Se ejecuta una vez cuando se crea la pantalla
+  // initState: Se ejecuta una vez cuando se crea la pantalla
   @override
   void initState() {
     super.initState();
@@ -105,7 +90,7 @@ class _NavigationHomeState extends State<NavigationHome> {
     }
 
     try {
-      // Buscamos en nuestro "mapa" de user_profiles
+      // Buscamos user_profiles
       final ref = FirebaseDatabase.instance.ref('user_profiles').child(user.uid);
       final snapshot = await ref.get();
 
@@ -115,15 +100,15 @@ class _NavigationHomeState extends State<NavigationHome> {
         setState(() {
           _restaurantName = data['restaurantName'];
           _role = data['role'];
-          _userEmail = user.email; // Guardamos el email
-          _isLoading = false; // ¡Terminamos de cargar!
+          _userEmail = user.email;
+          _isLoading = false;
         });
       } else {
-        // El usuario está logeado pero no tiene perfil (raro, pero posible)
+        
         setState(() {
           _isLoading = false;
         });
-        // Aquí podrías mostrar un error
+        
       }
     } catch (e) {
       // Manejo de error
@@ -189,38 +174,92 @@ class _NavigationHomeState extends State<NavigationHome> {
       );
     }
 
-    // Si ya cargó, creamos la lista de páginas 
-    // para pasarles los datos del restaurante
-    final List<Widget> pages = [
-      DashboardView(
-        restaurantName: _restaurantName ?? 'Error',
-        role: _role ?? 'Error',
-      ),
-      KitchenOrdersPanel(
-        restaurantName: _restaurantName ?? 'Error',
-      ),
-      KitchenOrderHistory(
-        restaurantName: _restaurantName ?? 'Error',
-      ),
-      ProductsView(
-        restaurantName: _restaurantName ?? 'Error',
-      ),
-      UsersView(
-        restaurantName: _restaurantName ?? 'Error',
-      ),
-    ];
+    if (_role == null || _restaurantName == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Error de Permisos')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('No pudimos cargar tu perfil de restaurante.'),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _performSignOut,
+                child: const Text('Volver a Iniciar Sesión'),
+              )
+            ],
+          ),
+        ),
+      );
+    }
+
+
+    // 6. Declaramos las listas de Vistas, Títulos e Ítems
+    final List<Widget> pages;
+    final List<String> titles;
+    final List<BottomNavigationBarItem> navBarItems;
+
+    // 7. Llenamos las listas según el rol
+    if (_role == 'Gerente') {
+      // El Gerente ve TODO
+      pages = [
+        DashboardView(restaurantName: _restaurantName!, role: _role!),
+        KitchenOrdersPanel(restaurantName: _restaurantName!),
+        KitchenOrderHistory(restaurantName: _restaurantName!),
+        ProductsView(restaurantName: _restaurantName!),
+        UsersView(restaurantName: _restaurantName!),
+      ];
+      titles = [
+        'Dashboard',
+        'Panel de Órdenes',
+        'Historial',
+        'Productos',
+        'Usuarios',
+      ];
+      navBarItems = const [
+        BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+        BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: 'Órdenes'),
+        BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Historial'),
+        BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Productos'),
+        BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Usuarios'),
+      ];
+
+    }else if (_role == 'Chef') {
+      // El Chef SÓLO ve Órdenes y Productos
+      pages = [
+        KitchenOrdersPanel(restaurantName: _restaurantName!),
+        KitchenOrderHistory(restaurantName: _restaurantName!),
+      ];
+      titles = [
+        'Panel de Órdenes',
+        'Historial',
+      ];
+      navBarItems = const [
+        BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: 'Órdenes'),
+        BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Historial'),
+      ];
+
+    }else {
+      // Otro rol (ej. Repartidor o un error)
+      pages = [
+        const Center(child: Text('No tienes vistas asignadas.'))
+      ];
+      titles = ['Inicio'];
+      navBarItems = const [
+        BottomNavigationBarItem(icon: Icon(Icons.do_not_disturb), label: 'Error'),
+      ];
+    }if (_selectedIndex >= pages.length) {
+      _selectedIndex = 0;
+    }
     
-    // Y ahora sí, construimos el Scaffold
     return Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Mostramos el título de la página
-            Text(_titles[_selectedIndex]),
-            // Mostramos el restaurante y el rol del usuario
+            Text(titles[_selectedIndex]), // <-- Título dinámico
             Text(
-              '${_restaurantName ?? 'Sin Restaurante'} (${_role ?? 'Sin Rol'})',
+              '${_restaurantName!} (${_role!})',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -233,21 +272,14 @@ class _NavigationHomeState extends State<NavigationHome> {
           ),
         ],
       ),
-      // Mostramos la página seleccionada
-      body: pages[_selectedIndex],
+      body: pages[_selectedIndex], // <-- Página dinámica
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Colors.deepPurple,
         unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: 'Órdenes'),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Historial'),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Productos'),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Usuarios'),
-        ],
+        items: navBarItems, // <-- Ítems dinámicos
       ),
     );
   }
