@@ -1,79 +1,110 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
+import '../../../models/product.dart';
+import '../../../widgets/product_card.dart';
+import '../../../widgets/form_product.dart';
 
-class ProductsView extends StatelessWidget {
+class ProductsView extends StatefulWidget {
   final String restaurantName;
-  const ProductsView({
-    super.key,
-    required this.restaurantName
-  });
+  const ProductsView({super.key, required this.restaurantName});
+
+  @override
+  State<ProductsView> createState() => _ProductsViewState();
+}
+
+class _ProductsViewState extends State<ProductsView> {
+  List<Producto> productos = [];
+
+  @override
+  void initState() {
+    super.initState();
+    cargarProductos();
+  }
+
+  void cargarProductos() {
+    final ref = FirebaseDatabase.instance.ref("${widget.restaurantName}/Productos");
+    ref.onValue.listen((event) {
+      final data = event.snapshot.value as Map?;
+      if (data != null) {
+        final lista = data.entries.map((e) {
+          return Producto.fromMap(e.key, Map<String, dynamic>.from(e.value));
+        }).toList();
+        setState(() => productos = lista);
+      }
+    });
+  }
+
+  Future<void> agregarProducto(Producto producto) async {
+    final ref = FirebaseDatabase.instance.ref("${widget.restaurantName}/Productos");
+    final nuevoRef = ref.push(); // genera ID automático
+    final productoConID = Producto(
+      id: nuevoRef.key ?? '',
+      nombre: producto.nombre,
+      precio: producto.precio,
+      disponible: producto.disponible,
+      stock: producto.stock,
+    );
+    await nuevoRef.set(productoConID.toMap());
+  }
+
+  Future<void> editarProducto(Producto producto) async {
+    final ref = FirebaseDatabase.instance.ref("${widget.restaurantName}/Productos/${producto.id}");
+    await ref.set(producto.toMap());
+  }
+
+  void mostrarFormulario({Producto? producto}) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: FormularioProducto(
+            productoExistente: producto,
+            onSubmit: (resultado) {
+              if (producto == null) {
+                agregarProducto(resultado);
+              } else {
+                editarProducto(resultado);
+              }
+              Navigator.pop(context);
+            },
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.yellow[50],
       appBar: AppBar(
-        title: Text('Gestión de Productos para: $restaurantName'),
+        title: Text('Gestión de Productos: ${widget.restaurantName}'),
         centerTitle: true,
+        backgroundColor: Colors.orangeAccent,
+        elevation: 4,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const Text(
-              "Listado de productos",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
+            const Text("Listado de productos", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
             const SizedBox(height: 12),
             Expanded(
               child: ListView(
-                children: const [
-                  Card(
-                    child: ListTile(
-                      leading: Icon(Icons.fastfood),
-                      title: Text("Hamburguesa Clásica"),
-                      subtitle: Text("Precio: \$80 - Disponible"),
-                      trailing: Icon(Icons.edit),
-                    ),
-                  ),
-                  Card(
-                    child: ListTile(
-                      leading: Icon(Icons.local_pizza),
-                      title: Text("Pizza Pepperoni"),
-                      subtitle: Text("Precio: \$150 - Agotada"),
-                      trailing: Icon(Icons.edit),
-                    ),
-                  ),
-                  Card(
-                    child: ListTile(
-                      leading: Icon(Icons.local_cafe),
-                      title: Text("Café expreso"),
-                      subtitle: Text("Precio: \$45 - Disponible"),
-                      trailing: Icon(Icons.edit),
-                    ),
-                  ),
-                  Card(
-                    child: ListTile(
-                      leading: Icon(Icons.local_drink),
-                      title: Text("Refresco"),
-                      subtitle: Text("Precio: \$30 - Disponible"),
-                      trailing: Icon(Icons.edit),
-                    ),
-                  ),
-                  Card(
-                    child: ListTile(
-                      leading: Icon(Icons.local_pizza),
-                      title: Text("Pizza Italiana"),
-                      subtitle: Text("Precio: \$130 - Disponible"),
-                      trailing: Icon(Icons.edit),
-                    ),
-                  ),
-                ],
+                children: productos.map((p) => ProductCard(
+                  producto: p,
+                  onEdit: () => mostrarFormulario(producto: p),
+                )).toList(),
               ),
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
-              onPressed: () {},
+              onPressed: () => mostrarFormulario(),
               icon: const Icon(Icons.add),
               label: const Text("Agregar producto"),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent),
             ),
           ],
         ),
