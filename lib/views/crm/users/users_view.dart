@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
+import '../../../models/user.dart';
+import '../../../widgets/user_card.dart';
+import '../../../widgets/form_user.dart';
 
-class UsersView extends StatelessWidget {
+class UsersView extends StatefulWidget {
   final String restaurantName;
 
   const UsersView({
@@ -9,11 +13,94 @@ class UsersView extends StatelessWidget {
   });
 
   @override
+  State<UsersView> createState() => _UsersViewState();
+}
+
+class _UsersViewState extends State<UsersView> {
+  List<Usuario> usuarios = [];
+
+  @override
+  void initState() {
+    super.initState();
+    cargarUsuarios();
+  }
+
+  /// Escucha en tiempo real los usuarios del restaurante
+  void cargarUsuarios() {
+    final ref = FirebaseDatabase.instance.ref("${widget.restaurantName}/Usuarios");
+    ref.onValue.listen((event) {
+      final data = event.snapshot.value as Map?;
+      if (data != null) {
+        final lista = data.entries.map((e) {
+          return Usuario.fromMap(e.key, Map<String, dynamic>.from(e.value));
+        }).toList();
+        setState(() => usuarios = lista);
+      } else {
+        setState(() => usuarios = []);
+      }
+    });
+  }
+
+  /// Registrar un nuevo usuario en la rama Usuarios
+  Future<void> registrarUsuario(Usuario usuario) async {
+    final id = FirebaseDatabase.instance.ref().push().key ?? '';
+
+    final refRestaurante = FirebaseDatabase.instance.ref("${widget.restaurantName}/Usuarios/$id");
+    await refRestaurante.set({
+      'uid': id,
+      'name': usuario.nombre,
+      'email': usuario.correo,
+      'role': usuario.rol,
+    });
+  }
+
+  /// Editar un usuario existente
+  Future<void> editarUsuario(Usuario usuario) async {
+    final ref = FirebaseDatabase.instance.ref("${widget.restaurantName}/Usuarios/${usuario.id}");
+    await ref.set({
+      'uid': usuario.id,
+      'name': usuario.nombre,
+      'email': usuario.correo,
+      'role': usuario.rol,
+    });
+  }
+
+  /// Eliminar un usuario
+  Future<void> eliminarUsuario(String id) async {
+    final refRestaurante = FirebaseDatabase.instance.ref("${widget.restaurantName}/Usuarios/$id");
+    await refRestaurante.remove();
+  }
+
+  /// Mostrar formulario para agregar/editar
+  void mostrarFormulario({Usuario? usuario}) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: FormularioUsuario(
+            usuarioExistente: usuario,
+            onSubmit: (resultado) {
+              if (usuario == null) {
+                registrarUsuario(resultado);
+              } else {
+                editarUsuario(resultado);
+              }
+              Navigator.pop(context);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.yellow[50],
       appBar: AppBar(
-        title: Text('Gestión de Usuarios para $restaurantName'),
+        title: Text('Gestión de Usuarios para ${widget.restaurantName}'),
         centerTitle: true,
         backgroundColor: const Color(0xFFFF6F00), // Naranja KO
       ),
@@ -31,38 +118,19 @@ class UsersView extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: ListView(
-                children: const [
-                  UserCard(
-                    icon: Icons.person,
-                    name: "Orlando Montes - Staff",
-                    role: "Cocinero",
-                    history: "120 pedidos",
-                  ),
-                  UserCard(
-                    icon: Icons.person,
-                    name: "Santiago Mendoza - Staff",
-                    role: "Ayudante",
-                    history: "120 pedidos",
-                  ),
-                  UserCard(
-                    icon: Icons.delivery_dining,
-                    name: "Clara López - Repartidor",
-                    role: "Delivery",
-                    history: "85 entregas",
-                  ),
-                  UserCard(
-                    icon: Icons.delivery_dining,
-                    name: "Leonardo Barajas - Repartidor",
-                    role: "Delivery",
-                    history: "85 entregas",
-                  ),
-                ],
-              ),
+              child: usuarios.isEmpty
+                  ? const Center(child: Text("No hay usuarios"))
+                  : ListView(
+                      children: usuarios.map<Widget>((u) => UserCard(
+                        usuario: u,
+                        onEdit: () => mostrarFormulario(usuario: u),
+                        onDelete: () => eliminarUsuario(u.id),
+                      )).toList(),
+                    ),
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
-              onPressed: () {},
+              onPressed: () => mostrarFormulario(),
               icon: const Icon(Icons.add),
               label: const Text("Agregar usuario"),
               style: ElevatedButton.styleFrom(
@@ -76,40 +144,6 @@ class UsersView extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class UserCard extends StatelessWidget {
-  final IconData icon;
-  final String name;
-  final String role;
-  final String history;
-
-  const UserCard({
-    super.key,
-    required this.icon,
-    required this.name,
-    required this.role,
-    required this.history,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 3,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.orange[100],
-          child: Icon(icon, color: Colors.deepOrange),
-        ),
-        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text("Rol: $role\nHistorial: $history"),
-        trailing: const Icon(Icons.more_vert),
       ),
     );
   }

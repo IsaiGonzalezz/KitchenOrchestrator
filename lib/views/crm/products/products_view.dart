@@ -52,6 +52,11 @@ class _ProductsViewState extends State<ProductsView> {
     await ref.set(producto.toMap());
   }
 
+  Future<void> eliminarProducto(String id) async {
+  final ref = FirebaseDatabase.instance.ref("${widget.restaurantName}/Productos/$id");
+  await ref.remove();
+}
+
   void mostrarFormulario({Producto? producto}) {
     showDialog(
       context: context,
@@ -89,13 +94,14 @@ class _ProductsViewState extends State<ProductsView> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const Text("Listado de productos", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+            const Text("Listado de productos", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.orangeAccent)),
             const SizedBox(height: 12),
             Expanded(
               child: ListView(
                 children: productos.map((p) => ProductCard(
                   producto: p,
                   onEdit: () => mostrarFormulario(producto: p),
+                  onDelete: () => eliminarProducto(p.id),
                 )).toList(),
               ),
             ),
