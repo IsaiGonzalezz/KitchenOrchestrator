@@ -1,51 +1,103 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class KitchenOrdersPanel extends StatefulWidget {
+  // 1. Parámetro restaurantName para construir la ruta de Firebase
   final String restaurantName;
-  const KitchenOrdersPanel({
-    super.key,
-    required this.restaurantName,
-  });
+
+  const KitchenOrdersPanel({Key? key, required this.restaurantName})
+      : super(key: key);
 
   @override
   State<KitchenOrdersPanel> createState() => _KitchenOrdersPanelState();
 }
 
 class _KitchenOrdersPanelState extends State<KitchenOrdersPanel> {
-
   String selectedFilter = 'todos';
 
-  // Mock data - reemplazar con datos reales de tu backend
-  final List<Map<String, dynamic>> orders = [
-    {
-      'id': 'ORD-001',
-      'status': 'nuevo',
-      'table': 'Mesa 5',
-      'items': 3,
-      'time': '2 min',
-      'priority': 'alta',
-    },
-    {
-      'id': 'ORD-002',
-      'status': 'en_preparacion',
-      'table': 'Mesa 12',
-      'items': 2,
-      'time': '15 min',
-      'priority': 'media',
-    },
-    {
-      'id': 'ORD-003',
-      'status': 'listo',
-      'table': 'Mesa 8',
-      'items': 4,
-      'time': '25 min',
-      'priority': 'baja',
-    },
-  ];
+  // 2. ordersRef se declara como late final
+  late final DatabaseReference ordersRef;
 
-  List<Map<String, dynamic>> get filteredOrders {
-    if (selectedFilter == 'todos') return orders;
-    return orders.where((order) => order['status'] == selectedFilter).toList();
+  @override
+  void initState() {
+    super.initState();
+    // 3. Inicialización dinámica de la referencia: /RestauranteID/Pedidos
+    ordersRef =
+        FirebaseDatabase.instance.ref('${widget.restaurantName}/Pedidos');
+  }
+
+  // Función para mapear el snapshot de Firebase a la lista de órdenes.
+  List<Map<String, dynamic>> _mapSnapshotToOrders(
+      AsyncSnapshot<DatabaseEvent> snapshot) {
+    List<Map<String, dynamic>> fetchedOrders = [];
+
+    final rawValue = snapshot.data?.snapshot.value;
+
+    if (rawValue != null && rawValue is Map) {
+      final Map<dynamic, dynamic> ordersMap = rawValue;
+
+      ordersMap.forEach((key, value) {
+        // Mapeo de campos
+        String id = key.toString();
+        String status = value['estado']?.toString().toLowerCase() ?? 'nuevo';
+        String cliente = value['cliente']?.toString() ?? 'N/A';
+
+        // Conteo de items
+        int totalItems = 0;
+        if (value['items'] is List) {
+          for (var item in value['items']) {
+            if (item is Map && item['cantidad'] is int) {
+              totalItems += item['cantidad'] as int;
+            }
+          }
+        }
+
+        // Cálculo de tiempo transcurrido (time)
+        String timeDisplay = 'N/A';
+        if (value['timestamp'] != null) {
+          try {
+            DateTime orderTime = DateTime.parse(value['timestamp']);
+            Duration elapsed = DateTime.now().difference(orderTime);
+            if (elapsed.inHours > 0) {
+              timeDisplay = '${elapsed.inHours} hr';
+            } else if (elapsed.inMinutes > 0) {
+              timeDisplay = '${elapsed.inMinutes} min';
+            } else {
+              timeDisplay = 'Ahora';
+            }
+          } catch (_) {
+            timeDisplay = 'N/A';
+          }
+        }
+
+        // Estructura final de la orden
+        fetchedOrders.add({
+          'id': id,
+          'status': status,
+          'cliente': cliente,
+          'items': totalItems,
+          'time': timeDisplay,
+        });
+      });
+    }
+
+    // IMPRESIÓN DE DEPURACIÓN #2: Órdenes mapeadas
+    print('--- MAPPED ORDERS (Before Filter) ---');
+    print(fetchedOrders);
+
+    // Aplicar el filtro de estado seleccionado
+    final List<Map<String, dynamic>> filtered = fetchedOrders.where((order) {
+      bool matchesFilter =
+          selectedFilter == 'todos' || order['status'] == selectedFilter;
+      return matchesFilter;
+    }).toList();
+
+    // IMPRESIÓN DE DEPURACIÓN #3: Órdenes filtradas
+    print('--- FINAL FILTERED ORDERS (Filter: $selectedFilter) ---');
+    print(filtered);
+    print('----------------------------------------');
+
+    return filtered;
   }
 
   Color _getStatusColor(String status) {
@@ -75,16 +127,20 @@ class _KitchenOrdersPanelState extends State<KitchenOrdersPanel> {
   }
 
   void _updateOrderStatus(String orderId, String newStatus) {
-    setState(() {
-      final orderIndex = orders.indexWhere((order) => order['id'] == orderId);
-      if (orderIndex != -1) {
-        orders[orderIndex]['status'] = newStatus;
-      }
+    // Convierte el estado local (lowercase) al formato de base de datos (uppercase, ej. NUEVO)
+    ordersRef.child(orderId).update({
+      'estado': newStatus.toUpperCase(),
+    }).then((_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content:
+                Text('Pedido actualizado a ${_getStatusLabel(newStatus)}')),
+      );
+    }).catchError((error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al actualizar: $error')),
+      );
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text('Pedido actualizado a ${_getStatusLabel(newStatus)}')),
-    );
   }
 
   void _printTicket(String orderId) {
@@ -97,27 +153,16 @@ class _KitchenOrdersPanelState extends State<KitchenOrdersPanel> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Icon(Icons.restaurant_menu),
-            SizedBox(width: 8),
-            Text('Panel de Órdenes para: ${widget.restaurantName}'),
-          ],
-        ),
-        backgroundColor: Colors.deepOrange,
-        elevation: 0,
-      ),
       body: Column(
         children: [
           // Filtros
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Color.fromARGB(255, 21, 21, 21),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Color.fromARGB(255, 248, 161, 69).withOpacity(0.1),
                   spreadRadius: 1,
                   blurRadius: 5,
                 ),
@@ -145,11 +190,26 @@ class _KitchenOrdersPanelState extends State<KitchenOrdersPanel> {
               ],
             ),
           ),
-
-          // Lista de pedidos
           Expanded(
-            child: filteredOrders.isEmpty
-                ? Center(
+            child: StreamBuilder<DatabaseEvent>(
+              stream: ordersRef.onValue,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  // Muestra el error de conexión
+                  return Center(
+                      child:
+                          Text('Error al cargar pedidos: ${snapshot.error}'));
+                }
+
+                final List<Map<String, dynamic>> filteredOrders =
+                    _mapSnapshotToOrders(snapshot);
+
+                if (filteredOrders.isEmpty) {
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -162,15 +222,19 @@ class _KitchenOrdersPanelState extends State<KitchenOrdersPanel> {
                         ),
                       ],
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filteredOrders.length,
-                    itemBuilder: (context, index) {
-                      final order = filteredOrders[index];
-                      return _buildOrderCard(order);
-                    },
-                  ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filteredOrders.length,
+                  itemBuilder: (context, index) {
+                    final order = filteredOrders[index];
+                    return _buildOrderCard(order);
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -178,6 +242,7 @@ class _KitchenOrdersPanelState extends State<KitchenOrdersPanel> {
   }
 
   Widget _buildFilterChip(String value, String label, IconData icon) {
+    // ... (Método buildFilterChip)
     final isSelected = selectedFilter == value;
     return FilterChip(
       selected: isSelected,
@@ -199,6 +264,7 @@ class _KitchenOrdersPanelState extends State<KitchenOrdersPanel> {
     );
   }
 
+  // Widget de la tarjeta de orden usando los campos confirmados
   Widget _buildOrderCard(Map<String, dynamic> order) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -232,6 +298,7 @@ class _KitchenOrdersPanelState extends State<KitchenOrdersPanel> {
                       ),
                       const SizedBox(width: 8),
                       Text(
+                        // ID de la orden (Key de Firebase)
                         order['id'],
                         style: const TextStyle(
                           fontSize: 18,
@@ -263,16 +330,23 @@ class _KitchenOrdersPanelState extends State<KitchenOrdersPanel> {
               // Info
               Row(
                 children: [
-                  Icon(Icons.table_restaurant,
-                      size: 16, color: Colors.grey[600]),
+                  // Muestra el nombre del cliente
+                  const Icon(Icons.person, size: 16, color: Colors.black54),
                   const SizedBox(width: 4),
-                  Text(order['table']),
+                  Text(
+                    order['cliente'],
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(width: 16),
-                  Icon(Icons.shopping_bag, size: 16, color: Colors.grey[600]),
+                  // Muestra el total de items
+                  const Icon(Icons.shopping_bag,
+                      size: 16, color: Colors.black54),
                   const SizedBox(width: 4),
                   Text('${order['items']} items'),
                   const SizedBox(width: 16),
-                  Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+                  // Muestra el tiempo transcurrido
+                  const Icon(Icons.access_time,
+                      size: 16, color: Colors.black54),
                   const SizedBox(width: 4),
                   Text(order['time']),
                 ],
