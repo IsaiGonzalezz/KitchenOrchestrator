@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 // Imports de Firebase
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_database/firebase_database.dart'; 
+import 'package:firebase_database/firebase_database.dart';
 import 'firebase_options.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -17,9 +17,8 @@ import 'views/crm/products/products_view.dart';
 import 'views/crm/users/users_view.dart';
 import 'views/signup/signup.dart';
 
-
 void main() async {
-  // inicialización de Firebase 
+  // inicialización de Firebase
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -38,7 +37,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      
+
       //  Ruta inicial: /login
       initialRoute: '/login',
 
@@ -62,7 +61,6 @@ class NavigationHome extends StatefulWidget {
 }
 
 class _NavigationHomeState extends State<NavigationHome> {
-  
   // 1. Variables de estado
   int _selectedIndex = 0;
   String? _restaurantName;
@@ -70,7 +68,6 @@ class _NavigationHomeState extends State<NavigationHome> {
   String? _userEmail;
   bool _isLoading = true; // Empezamos en modo "cargando"
   final _storage = const FlutterSecureStorage();
-  
 
   // initState: Se ejecuta una vez cuando se crea la pantalla
   @override
@@ -91,7 +88,8 @@ class _NavigationHomeState extends State<NavigationHome> {
 
     try {
       // Buscamos user_profiles
-      final ref = FirebaseDatabase.instance.ref('user_profiles').child(user.uid);
+      final ref =
+          FirebaseDatabase.instance.ref('user_profiles').child(user.uid);
       final snapshot = await ref.get();
 
       if (snapshot.exists) {
@@ -104,11 +102,9 @@ class _NavigationHomeState extends State<NavigationHome> {
           _isLoading = false;
         });
       } else {
-        
         setState(() {
           _isLoading = false;
         });
-        
       }
     } catch (e) {
       // Manejo de error
@@ -164,7 +160,6 @@ class _NavigationHomeState extends State<NavigationHome> {
   // 6. Método Build: Dibuja la pantalla
   @override
   Widget build(BuildContext context) {
-    
     // Si está cargando, mostramos un spinner
     if (_isLoading) {
       return const Scaffold(
@@ -193,7 +188,6 @@ class _NavigationHomeState extends State<NavigationHome> {
       );
     }
 
-
     // 6. Declaramos las listas de Vistas, Títulos e Ítems
     final List<Widget> pages;
     final List<String> titles;
@@ -217,14 +211,15 @@ class _NavigationHomeState extends State<NavigationHome> {
         'Usuarios',
       ];
       navBarItems = const [
-        BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard), label: 'Dashboard'),
         BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: 'Órdenes'),
         BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Historial'),
-        BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Productos'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_cart), label: 'Productos'),
         BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Usuarios'),
       ];
-
-    }else if (_role == 'Chef') {
+    } else if (_role == 'Chef') {
       // El Chef SÓLO ve Órdenes y Productos
       pages = [
         KitchenOrdersPanel(restaurantName: _restaurantName!),
@@ -238,28 +233,29 @@ class _NavigationHomeState extends State<NavigationHome> {
         BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: 'Órdenes'),
         BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Historial'),
       ];
-
-    }else {
+    } else {
       // Otro rol (ej. Repartidor o un error)
-      pages = [
-        const Center(child: Text('No tienes vistas asignadas.'))
-      ];
+      pages = [const Center(child: Text('No tienes vistas asignadas.'))];
       titles = ['Inicio'];
       navBarItems = const [
-        BottomNavigationBarItem(icon: Icon(Icons.do_not_disturb), label: 'Error'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.do_not_disturb), label: 'Error'),
       ];
-    }if (_selectedIndex >= pages.length) {
+    }
+    if (_selectedIndex >= pages.length) {
       _selectedIndex = 0;
     }
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(titles[_selectedIndex]), // <-- Título dinámico
             Text(
-              '${_restaurantName!} (${_role!})',
+              '${titles[_selectedIndex]} (${_restaurantName!})',
+            ),
+            Text(
+              '(${_role!})',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -277,7 +273,7 @@ class _NavigationHomeState extends State<NavigationHome> {
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.deepPurple,
+        selectedItemColor: Color.fromARGB(255, 248, 161, 69),
         unselectedItemColor: Colors.grey,
         items: navBarItems, // <-- Ítems dinámicos
       ),
