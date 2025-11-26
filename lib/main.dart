@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -59,6 +60,58 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const NavigationHome(), // Tu barra de navegación
       },
 
+      //Ruta dinámica
+      onGenerateRoute: (settings) {
+        if (settings.name == '/kitchen/order-detail') {
+          // Extraemos los argumentos que enviamos desde kitchen_orders_panel.dart
+          final args = settings.arguments as Map<String, dynamic>;
+          final orderId = args['orderId'] as String;
+          final restaurantName = args['restaurantName'] as String;
+
+          //PageRouteBuilder  animación de deslizamiento
+          return PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) {
+              return Align(
+                alignment: Alignment.centerRight,
+                child: SizedBox(
+                  //Ancho 500 píxeles de ancho.
+                  width: 500,
+                  child: KitchenOrderDetail(
+                    orderId: orderId,
+                    restaurantName: restaurantName,
+                  ),
+                ),
+              );
+            },
+
+            // El tiempo de la animación
+            transitionDuration: const Duration(milliseconds: 300),
+            // La función que define la animación
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              const begin =
+                  Offset(1.0, 0.0); // Inicia fuera de la pantalla (derecha)
+              const end = Offset.zero; // Termina en posición normal
+              const curve = Curves.easeOut; // Animación suave
+
+              final tween =
+                  Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+              // Retorna un SlideTransition que aplica la animación al 'child'
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
+            },
+            // Fondo oscuro (Overlay oscuro)
+            opaque: false, // Permite que el contenido subyacente se vea
+            barrierDismissible: true, // Permite cerrar al hacer clic fuera
+            barrierColor: Colors.black54, // Color del overlay oscuro
+          );
+        }
+        // Si no es la ruta de detalle, volvemos a null para usar el ruteo normal.
+        return null;
+      },
       debugShowCheckedModeBanner: false,
     );
   }

@@ -255,87 +255,101 @@ class _KitchenOrdersPanelState extends State<KitchenOrdersPanel> {
   // -------------------------------------------------------------
   Widget _buildOrderCard(Map<String, dynamic> order) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        margin: const EdgeInsets.only(bottom: 12),
+        child: InkWell(
+          // 💡 CAMBIO: Usamos InkWell para detectar el toque
+          onTap: () {
+            // 💡 NUEVA NAVEGACIÓN: Abrir la vista de detalle de la orden
+            Navigator.pushNamed(
+              context,
+              '/kitchen/order-detail', // Asegúrate de que esta ruta esté definida en tu main.dart
+              arguments: {
+                'orderId': order['id'],
+                'restaurantName': widget.restaurantName,
+              },
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Header
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(order['status']),
-                        shape: BoxShape.circle,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(order['status']),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          order['id'],
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      order['id'],
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color:
+                            _getStatusColor(order['status']).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _getStatusLabel(order['status']),
+                        style: TextStyle(
+                          color: _getStatusColor(order['status']),
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(order['status']).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    _getStatusLabel(order['status']),
-                    style: TextStyle(
-                      color: _getStatusColor(order['status']),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                const SizedBox(height: 12),
+
+                // Información
+                Row(
+                  children: [
+                    const Icon(Icons.person, size: 16),
+                    const SizedBox(width: 4),
+                    Text(order['cliente']),
+                    const SizedBox(width: 16),
+                    const Icon(Icons.shopping_bag, size: 16),
+                    const SizedBox(width: 4),
+                    Text('${order['items']} items'),
+                    const SizedBox(width: 16),
+                    const Icon(Icons.access_time, size: 16),
+                    const SizedBox(width: 4),
+                    Text(order['time']),
+                  ],
                 ),
+
+                const SizedBox(height: 16),
+
+                // Botones
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (order['status'] == 'nuevo') _btnIniciar(order['id']),
+                    if (order['status'] == 'en_preparacion')
+                      _btnListo(order['id'], order['inicio_preparacion']),
+                  ],
+                )
               ],
             ),
-            const SizedBox(height: 12),
-
-            // Información
-            Row(
-              children: [
-                const Icon(Icons.person, size: 16),
-                const SizedBox(width: 4),
-                Text(order['cliente']),
-                const SizedBox(width: 16),
-                const Icon(Icons.shopping_bag, size: 16),
-                const SizedBox(width: 4),
-                Text('${order['items']} items'),
-                const SizedBox(width: 16),
-                const Icon(Icons.access_time, size: 16),
-                const SizedBox(width: 4),
-                Text(order['time']),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // Botones
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (order['status'] == 'nuevo') _btnIniciar(order['id']),
-                if (order['status'] == 'en_preparacion')
-                  _btnListo(order['id'], order['inicio_preparacion']),
-              ],
-            )
-          ],
-        ),
-      ),
-    );
+          ),
+        ));
   }
 
   Widget _btnIniciar(String id) {
