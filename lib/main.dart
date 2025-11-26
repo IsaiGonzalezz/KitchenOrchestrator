@@ -12,6 +12,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 // Vistas
 import 'views/kitchen/kitchen_orders_panel.dart';
 import 'views/kitchen/kitchen_order_history.dart';
+import 'views/kitchen/kitchen_order_detail.dart';
 import 'views/login/login_view.dart';
 import 'views/crm/dashboard/dashboard_view.dart';
 import 'views/crm/products/products_view.dart';
@@ -251,10 +252,12 @@ class _NavigationHomeState extends State<NavigationHome> {
       ];
 
       navBarItems = const [
-        BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard), label: 'Dashboard'),
         BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: 'Órdenes'),
         BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Historial'),
-        BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Productos'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_cart), label: 'Productos'),
         BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Usuarios'),
       ];
     } else if (_role == 'Chef') {
@@ -273,7 +276,8 @@ class _NavigationHomeState extends State<NavigationHome> {
       navBarItems = const [
         BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: 'Órdenes'),
         BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Historial'),
-        BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Productos'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_cart), label: 'Productos'),
       ];
     } else {
       pages = [
@@ -307,7 +311,8 @@ class _NavigationHomeState extends State<NavigationHome> {
                     text: titles[_selectedIndex],
                     style: const TextStyle(color: Colors.white),
                   ),
-                  const TextSpan(text: ' ', style: TextStyle(color: Colors.white)),
+                  const TextSpan(
+                      text: ' ', style: TextStyle(color: Colors.white)),
                   TextSpan(
                     text: _restaurantName!,
                     style: const TextStyle(
@@ -332,9 +337,7 @@ class _NavigationHomeState extends State<NavigationHome> {
           ),
         ],
       ),
-
       body: pages[_selectedIndex],
-
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
