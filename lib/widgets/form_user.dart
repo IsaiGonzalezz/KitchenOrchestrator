@@ -18,7 +18,8 @@ class FormularioUsuario extends StatefulWidget {
 class _FormularioUsuarioState extends State<FormularioUsuario> {
   late TextEditingController nombreCtrl;
   late TextEditingController correoCtrl;
-  late TextEditingController rolCtrl;
+  late TextEditingController contrasenaCtrl;
+  String rolSeleccionado = "Chef";
   bool activo = true;
 
   @override
@@ -27,8 +28,17 @@ class _FormularioUsuarioState extends State<FormularioUsuario> {
     final u = widget.usuarioExistente;
     nombreCtrl = TextEditingController(text: u?.nombre ?? '');
     correoCtrl = TextEditingController(text: u?.correo ?? '');
-    rolCtrl = TextEditingController(text: u?.rol ?? '');
+    contrasenaCtrl = TextEditingController();
+    rolSeleccionado = u?.rol ?? "Chef";
     activo = u?.activo ?? true;
+  }
+
+  @override
+  void dispose() {
+    nombreCtrl.dispose();
+    correoCtrl.dispose();
+    contrasenaCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -59,11 +69,29 @@ class _FormularioUsuarioState extends State<FormularioUsuario> {
             prefixIcon: const Icon(Icons.email, color: Colors.blueAccent),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
+          keyboardType: TextInputType.emailAddress,
         ),
         const SizedBox(height: 15),
 
-        TextFormField(
-          controller: rolCtrl,
+        if (widget.usuarioExistente == null)
+          TextFormField(
+            controller: contrasenaCtrl,
+            decoration: InputDecoration(
+              labelText: "Contraseña",
+              prefixIcon: const Icon(Icons.lock, color: Colors.redAccent),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            obscureText: true,
+          ),
+        const SizedBox(height: 15),
+
+        DropdownButtonFormField<String>(
+          value: rolSeleccionado,
+          items: const [
+            DropdownMenuItem(value: "Gerente", child: Text("Gerente")),
+            DropdownMenuItem(value: "Chef", child: Text("Chef")),
+          ],
+          onChanged: (val) => setState(() => rolSeleccionado = val ?? "Chef"),
           decoration: InputDecoration(
             labelText: "Rol",
             prefixIcon: const Icon(Icons.work, color: Colors.green),
@@ -72,31 +100,28 @@ class _FormularioUsuarioState extends State<FormularioUsuario> {
         ),
         const SizedBox(height: 15),
 
-        SwitchListTile(
-          title: const Text("¿Activo?"),
-          value: activo,
-          activeColor: Colors.deepOrange,
-          onChanged: (val) => setState(() => activo = val),
-        ),
-        const SizedBox(height: 20),
-
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
             onPressed: () {
               final nombre = nombreCtrl.text.trim();
               final correo = correoCtrl.text.trim();
-              final rol = rolCtrl.text.trim();
+              final contrasena = contrasenaCtrl.text.trim();
 
-              if (nombre.isNotEmpty && correo.isNotEmpty && rol.isNotEmpty) {
+              if (nombre.isNotEmpty && correo.isNotEmpty) {
                 final nuevo = Usuario(
                   id: widget.usuarioExistente?.id ?? '',
                   nombre: nombre,
                   correo: correo,
-                  rol: rol,
+                  rol: rolSeleccionado,
                   activo: activo,
+                  contrasena: contrasena,
                 );
                 widget.onSubmit(nuevo);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Completa todos los campos")),
+                );
               }
             },
             icon: const Icon(Icons.save),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../../../models/user.dart';
 import '../../../widgets/user_card.dart';
@@ -25,7 +26,6 @@ class _UsersViewState extends State<UsersView> {
     cargarUsuarios();
   }
 
-  /// Escucha en tiempo real los usuarios del restaurante
   void cargarUsuarios() {
     final ref = FirebaseDatabase.instance.ref("${widget.restaurantName}/Usuarios");
     ref.onValue.listen((event) {
@@ -41,37 +41,54 @@ class _UsersViewState extends State<UsersView> {
     });
   }
 
-  /// Registrar un nuevo usuario en la rama Usuarios
   Future<void> registrarUsuario(Usuario usuario) async {
-    final id = FirebaseDatabase.instance.ref().push().key ?? '';
+    try {
+      UserCredential cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: usuario.correo,
+        password: usuario.contrasena,
+      );
+      final uid = cred.user!.uid;
 
-    final refRestaurante = FirebaseDatabase.instance.ref("${widget.restaurantName}/Usuarios/$id");
-    await refRestaurante.set({
-      'uid': id,
-      'name': usuario.nombre,
-      'email': usuario.correo,
-      'role': usuario.rol,
-    });
+      final refRestaurante = FirebaseDatabase.instance.ref("${widget.restaurantName}/Usuarios/$uid");
+      await refRestaurante.set(usuario.copyWith(id: uid).toMapRestaurante());
+
+      final refPerfil = FirebaseDatabase.instance.ref("user_profiles/$uid");
+      await refPerfil.set(usuario.toMapPerfil(widget.restaurantName));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Usuario registrado correctamente"), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: ${e.toString()}"), backgroundColor: Colors.red),
+      );
+    }
   }
 
-  /// Editar un usuario existente
   Future<void> editarUsuario(Usuario usuario) async {
     final ref = FirebaseDatabase.instance.ref("${widget.restaurantName}/Usuarios/${usuario.id}");
-    await ref.set({
-      'uid': usuario.id,
-      'name': usuario.nombre,
-      'email': usuario.correo,
-      'role': usuario.rol,
-    });
+    await ref.set(usuario.toMapRestaurante());
+
+    final refPerfil = FirebaseDatabase.instance.ref("user_profiles/${usuario.id}");
+    await refPerfil.set(usuario.toMapPerfil(widget.restaurantName));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Usuario actualizado correctamente"), backgroundColor: Colors.blue),
+    );
   }
 
-  /// Eliminar un usuario
   Future<void> eliminarUsuario(String id) async {
     final refRestaurante = FirebaseDatabase.instance.ref("${widget.restaurantName}/Usuarios/$id");
     await refRestaurante.remove();
+
+    final refPerfil = FirebaseDatabase.instance.ref("user_profiles/$id");
+    await refPerfil.remove();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Usuario eliminado"), backgroundColor: Colors.red),
+    );
   }
 
-  /// Mostrar formulario para agregar/editar
   void mostrarFormulario({Usuario? usuario}) {
     showDialog(
       context: context,
@@ -82,12 +99,12 @@ class _UsersViewState extends State<UsersView> {
           child: FormularioUsuario(
             usuarioExistente: usuario,
             onSubmit: (resultado) {
+              Navigator.pop(context);
               if (usuario == null) {
                 registrarUsuario(resultado);
               } else {
                 editarUsuario(resultado);
               }
-              Navigator.pop(context);
             },
           ),
         ),
@@ -98,30 +115,17 @@ class _UsersViewState extends State<UsersView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.yellow[50],
-      appBar: AppBar(
-        title: Text('Gestión de Usuarios para ${widget.restaurantName}'),
-        centerTitle: true,
-        backgroundColor: const Color(0xFFFF6F00), // Naranja KO
-      ),
+      backgroundColor: Color.fromARGB(255, 21, 21, 21),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const Text(
-              "Usuarios registrados",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.deepOrange,
-              ),
-            ),
             const SizedBox(height: 12),
             Expanded(
               child: usuarios.isEmpty
                   ? const Center(child: Text("No hay usuarios"))
                   : ListView(
-                      children: usuarios.map<Widget>((u) => UserCard(
+                      children: usuarios.map((u) => UserCard(
                         usuario: u,
                         onEdit: () => mostrarFormulario(usuario: u),
                         onDelete: () => eliminarUsuario(u.id),
@@ -134,8 +138,7 @@ class _UsersViewState extends State<UsersView> {
               icon: const Icon(Icons.add),
               label: const Text("Agregar usuario"),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF6F00), // Naranja KO
-                foregroundColor: Colors.white,
+                backgroundColor: Colors.orangeAccent,
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
