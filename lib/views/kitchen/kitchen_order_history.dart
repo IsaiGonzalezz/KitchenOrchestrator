@@ -37,7 +37,8 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
   }
 
   // Lógica de mapeo para órdenes históricas (ESTADO != NUEVO, EN_PREPARACION)
-  void _mapSnapshotToHistoryOrders(AsyncSnapshot<DatabaseEvent> snapshot) {
+  List<Map<String, dynamic>> _mapSnapshotToHistoryOrders(
+      AsyncSnapshot<DatabaseEvent> snapshot) {
     List<Map<String, dynamic>> ordersList = [];
     final rawValue = snapshot.data?.snapshot.value;
 
@@ -67,12 +68,14 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
           }
 
           DateTime orderDate = DateTime.now();
-          String completedTime = 'X min';
           if (value['timestamp'] != null) {
             try {
               orderDate = DateTime.parse(value['timestamp']);
             } catch (_) {/* ignore */}
           }
+
+          // 🔥 EXTRAE tiempo_prep de Firebase
+          String completedTime = value['tiempo_prep']?.toString() ?? 'N/A';
 
           ordersList.add({
             'id': id,
@@ -81,7 +84,7 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
             'table': 'Cliente',
             'items': itemNames,
             'totalItems': totalItems,
-            'completedTime': completedTime,
+            'completedTime': completedTime, // ✅ Ahora tiene el valor real
             'status': status,
           });
         }
@@ -89,7 +92,7 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
     }
 
     ordersList.sort((a, b) => b['date'].compareTo(a['date']));
-    _rawHistoryOrders = ordersList;
+    return ordersList;
   }
 
   // ... (Resto de la lógica de getters y funciones auxiliares)
@@ -106,8 +109,7 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
 
       bool matchesSearch = searchQuery.isEmpty ||
           order['id'].toLowerCase().contains(searchQuery.toLowerCase()) ||
-          order['customer'].toLowerCase().contains(searchQuery.toLowerCase()) ||
-          order['table'].toLowerCase().contains(searchQuery.toLowerCase());
+          order['customer'].toLowerCase().contains(searchQuery.toLowerCase());
 
       return matchesDate && matchesProduct && matchesSearch;
     }).toList();
@@ -426,31 +428,14 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
   Widget build(BuildContext context) {
     // Aquí se utiliza ordersRef.onValue del código anterior para cargar los datos de la tabla.
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            const Icon(Icons.history),
-            const SizedBox(width: 8),
-            Text('Historial de Pedidos para: ${widget.restaurantName}'),
-          ],
-        ),
-        backgroundColor: Colors.deepOrange,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.file_download),
-            onPressed: _exportReport,
-            tooltip: 'Exportar reporte',
-          ),
-        ],
-      ),
+      backgroundColor: Color.fromARGB(255, 21, 21, 21),
       body: Column(
         children: [
           // Barra de búsqueda y filtros
-          // ... (mantener el código de filtros y barra de búsqueda)
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: const Color.fromARGB(255, 21, 21, 21),
               boxShadow: [
                 BoxShadow(
                   color: Colors.grey.withOpacity(0.1),
@@ -459,69 +444,76 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
                 ),
               ],
             ),
-            child: Column(
+            child: Row(
               children: [
-                // Barra de búsqueda
-                TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Buscar por ID, cliente o mesa...',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30),
+                // Barra de búsqueda (ocupa el espacio restante)
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por ID o cliente ...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
                     ),
-                    filled: true,
-                    fillColor: Colors.grey[100],
+                    onChanged: (value) {
+                      setState(() {
+                        searchQuery = value;
+                      });
+                    },
                   ),
-                  onChanged: (value) {
-                    setState(() {
-                      searchQuery = value;
-                    });
-                  },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(width: 12),
 
-                // Filtros
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _selectDate,
-                        icon: const Icon(Icons.calendar_today),
-                        label: Text(
-                          selectedDate == null
-                              ? 'Fecha'
-                              : DateFormat('dd/MM/yyyy').format(selectedDate!),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: selectedDate != null
-                              ? Colors.deepOrange.withOpacity(0.1)
-                              : null,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _showProductFilterDialog,
-                        icon: const Icon(Icons.restaurant),
-                        label: Text(
-                          selectedProduct ?? 'Producto',
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: selectedProduct != null
-                              ? Colors.deepOrange.withOpacity(0.1)
-                              : null,
-                        ),
-                      ),
-                    ),
-                    if (selectedDate != null || selectedProduct != null)
-                      IconButton(
-                        onPressed: _clearFilters,
-                        icon: const Icon(Icons.clear),
-                        tooltip: 'Limpiar filtros',
-                      ),
-                  ],
+                // Botón de filtro por fecha (solo icono)
+                IconButton(
+                  onPressed: _selectDate,
+                  icon: const Icon(Icons.calendar_today),
+                  tooltip: selectedDate == null
+                      ? 'Filtrar por fecha'
+                      : DateFormat('dd/MM/yyyy').format(selectedDate!),
+                  style: IconButton.styleFrom(
+                    backgroundColor: selectedDate != null
+                        ? Colors.deepOrange.withOpacity(0.2)
+                        : Colors.grey[800],
+                    foregroundColor:
+                        selectedDate != null ? Colors.deepOrange : Colors.white,
+                  ),
                 ),
+                const SizedBox(width: 8),
+
+                // Botón de filtro por producto (solo icono)
+                IconButton(
+                  onPressed: _showProductFilterDialog,
+                  icon: const Icon(Icons.restaurant),
+                  tooltip: selectedProduct ?? 'Filtrar por producto',
+                  style: IconButton.styleFrom(
+                    backgroundColor: selectedProduct != null
+                        ? Colors.deepOrange.withOpacity(0.2)
+                        : Colors.grey[800],
+                    foregroundColor: selectedProduct != null
+                        ? Colors.deepOrange
+                        : Colors.white,
+                  ),
+                ),
+
+                // Botón para limpiar filtros
+                if (selectedDate != null || selectedProduct != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: IconButton(
+                      onPressed: _clearFilters,
+                      icon: const Icon(Icons.clear),
+                      tooltip: 'Limpiar filtros',
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.red.withOpacity(0.2),
+                        foregroundColor: Colors.red,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -575,8 +567,8 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
                       child: Text('Error de conexión: ${snapshot.error}'));
                 }
 
-                // Mapear y filtrar la lista de órdenes históricas
-                _mapSnapshotToHistoryOrders(snapshot);
+                //  Mapear y actualizar _rawHistoryOrders
+                _rawHistoryOrders = _mapSnapshotToHistoryOrders(snapshot);
 
                 if (filteredOrders.isEmpty) {
                   return Center(

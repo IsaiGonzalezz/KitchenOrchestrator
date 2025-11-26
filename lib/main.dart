@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 // Imports de Firebase
 import 'package:firebase_auth/firebase_auth.dart';
@@ -33,6 +34,16 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Kitchen Orchestrator',
+
+      //
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('es', 'ES'),
+      ],
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -251,15 +262,42 @@ class _NavigationHomeState extends State<NavigationHome> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '${titles[_selectedIndex]} (${_restaurantName!})',
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  fontSize: 20, // Ajusta según necesites
+                  fontWeight: FontWeight.w500,
+                ),
+                children: [
+                  TextSpan(
+                    text: titles[_selectedIndex],
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  const TextSpan(
+                    text: ' ',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  TextSpan(
+                    text: _restaurantName!,
+                    style: const TextStyle(
+                        color: Color.fromARGB(255, 248, 161, 69)), //  Naranja
+                  ),
+                  const TextSpan(
+                    text: '',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
             ),
             Text(
-              '(${_role!})',
-              style: Theme.of(context).textTheme.bodySmall,
+              '($_role!)',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.white70, // Más sutil
+                  ),
             ),
           ],
         ),
+        backgroundColor: Color.fromARGB(255, 21, 21, 21),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -273,6 +311,7 @@ class _NavigationHomeState extends State<NavigationHome> {
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
+        backgroundColor: Color.fromARGB(255, 21, 21, 21),
         selectedItemColor: Color.fromARGB(255, 248, 161, 69),
         unselectedItemColor: Colors.grey,
         items: navBarItems, // <-- Ítems dinámicos
