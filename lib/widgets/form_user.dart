@@ -100,14 +100,6 @@ class _FormularioUsuarioState extends State<FormularioUsuario> {
         ),
         const SizedBox(height: 15),
 
-        SwitchListTile(
-          title: const Text("¿Activo?"),
-          value: activo,
-          activeColor: Colors.deepOrange,
-          onChanged: (val) => setState(() => activo = val),
-        ),
-        const SizedBox(height: 20),
-
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(

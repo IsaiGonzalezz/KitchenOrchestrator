@@ -15,6 +15,39 @@ For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
 
+
+# **Reglas de seguridad**
+  Normas de Seguridad Implementadas
+  Para asegurar la integridad y confidencialidad de los datos del proyecto, se implementaron las siguientes medidas de seguridad, principalmente aprovechando los servicios de Firebase y las buenas prácticas de desarrollo.
+
+  1. Autenticación Segura de Usuarios
+  Implementación: Se utiliza Firebase Authentication para gestionar el registro e inicio de sesión de usuarios mediante correo electrónico y contraseña.
+
+  Justificación: En lugar de gestionar y almacenar contraseñas manualmente, se delega esta responsabilidad al servicio de Firebase. Esto asegura que todas las contraseñas se almacenen con hashing y salting robustos, siguiendo los estándares de la industria, sin que tengamos que implementarlo desde cero.
+
+  2. Autorización y Reglas de Acceso a la Base de Datos
+  Implementación: Se configuraron las Reglas de Seguridad en Firebase Realtime Database.
+
+  Justificación: Esta es una de las medidas de seguridad más críticas. Las reglas establecen que la base de datos no es de acceso público. Se requiere que un usuario esté autenticado (auth != null) para poder realizar operaciones de lectura o escritura. Esto previene que usuarios no autorizados accedan o modifiquen la información de la aplicación.
+
+  (Opcional, si lo hiciste más específico): Además, las reglas están estructuradas para que un usuario solo pueda leer y escribir sus propios datos, utilizando el auth.uid como llave de acceso.
+
+  3. Protección de Datos en Tránsito
+  Implementación: Toda la comunicación entre la aplicación Flutter y los servidores de Firebase se realiza automáticamente.
+
+  Justificación: El SDK de Firebase utiliza HTTPS (SSL/TLS) de forma predeterminada para todas sus conexiones. Esto garantiza que toda la información, incluyendo credenciales de inicio de sesión y datos de la aplicación, viaje encriptada, protegiéndola de ataques de interceptación (man-in-the-middle).
+
+  4. Gestión de Claves y Secretos del Proyecto
+  Implementación: El archivo de configuración de Firebase (google-services.json) se incluyó en el archivo .gitignore del repositorio.
+
+  Justificación: Este archivo contiene claves e identificadores sensibles del proyecto de Firebase. Al añadirlo al .gitignore, nos aseguramos de que este archivo no se suba a repositorios públicos (como GitHub), evitando que terceros puedan encontrar las credenciales y obtener acceso no autorizado a nuestros servicios de Firebase.
+
+  5. Manejo Seguro de la Sesión del Usuario
+  Implementación: El SDK de Firebase gestiona la persistencia de la sesión.
+
+  Justificación: Una vez que el usuario inicia sesión, Firebase genera un token de sesión que se almacena de forma segura en el dispositivo. La aplicación no guarda la contraseña del usuario en texto plano en el dispositivo. Este token se utiliza para validar al usuario en solicitudes futuras, y el SDK maneja su actualización y revocación de forma segura.
+
+  
 # **Contexto del proyecto**
 
 
@@ -149,7 +182,10 @@ lib/
 
 
 
-## Pruebas previstas
+
+## Pruebas previstas 
+
+
 
 
 

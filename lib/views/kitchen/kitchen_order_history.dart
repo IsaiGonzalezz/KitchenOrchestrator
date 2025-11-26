@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_database/firebase_database.dart'; // Importar Realtime Database
+import 'dart:core';
 
 class KitchenOrderHistory extends StatefulWidget {
   final String restaurantName;
@@ -17,63 +19,97 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
   String? selectedProduct;
   String searchQuery = '';
 
-  // Mock data - reemplazar con datos reales
-  final List<Map<String, dynamic>> historyOrders = [
-    {
-      'id': 'ORD-101',
-      'date': DateTime.now().subtract(const Duration(hours: 2)),
-      'table': 'Mesa 3',
-      'customer': 'Juan Pérez',
-      'items': ['Pizza Napolitana', 'Ensalada César'],
-      'totalItems': 2,
-      'completedTime': '18 min',
-      'status': 'completado',
-    },
-    {
-      'id': 'ORD-100',
-      'date': DateTime.now().subtract(const Duration(hours: 3)),
-      'table': 'Mesa 7',
-      'customer': 'María González',
-      'items': ['Pasta Carbonara', 'Tiramisu', 'Café'],
-      'totalItems': 3,
-      'completedTime': '25 min',
-      'status': 'completado',
-    },
-    {
-      'id': 'ORD-099',
-      'date': DateTime.now().subtract(const Duration(days: 1)),
-      'table': 'Mesa 12',
-      'customer': 'Carlos Rodríguez',
-      'items': ['Hamburguesa', 'Papas fritas'],
-      'totalItems': 2,
-      'completedTime': '15 min',
-      'status': 'completado',
-    },
-    {
-      'id': 'ORD-098',
-      'date': DateTime.now().subtract(const Duration(days: 1, hours: 2)),
-      'table': 'Mesa 5',
-      'customer': 'Ana Martínez',
-      'items': ['Sushi variado', 'Sopa miso'],
-      'totalItems': 2,
-      'completedTime': '30 min',
-      'status': 'completado',
-    },
-  ];
+  // 1. Referencias a la base de datos
+  late final DatabaseReference ordersRef;
+  late final DatabaseReference productsRef; // Nueva referencia para productos
+
+  List<Map<String, dynamic>> _rawHistoryOrders = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Inicialización dinámica de la referencia a ÓRDENES: /RestauranteID/Pedidos
+    ordersRef =
+        FirebaseDatabase.instance.ref('${widget.restaurantName}/Pedidos');
+    // Inicialización de la referencia a PRODUCTOS: /RestauranteID/Productos
+    productsRef =
+        FirebaseDatabase.instance.ref('${widget.restaurantName}/Productos');
+  }
+
+  // Lógica de mapeo para órdenes históricas (ESTADO != NUEVO, EN_PREPARACION)
+  List<Map<String, dynamic>> _mapSnapshotToHistoryOrders(
+      AsyncSnapshot<DatabaseEvent> snapshot) {
+    List<Map<String, dynamic>> ordersList = [];
+    final rawValue = snapshot.data?.snapshot.value;
+
+    const List<String> exclusionStatus = ['nuevo', 'en_preparacion'];
+
+    if (rawValue != null && rawValue is Map) {
+      final Map<dynamic, dynamic> ordersMap = rawValue;
+
+      ordersMap.forEach((key, value) {
+        String id = key.toString();
+        String status = value['estado']?.toString().toLowerCase() ?? 'nuevo';
+
+        if (!exclusionStatus.contains(status)) {
+          List<String> itemNames = [];
+          int totalItems = 0;
+          if (value['items'] is List) {
+            for (var item in value['items']) {
+              if (item is Map) {
+                if (item['producto'] is String) {
+                  itemNames.add(item['producto']);
+                }
+                if (item['cantidad'] is int) {
+                  totalItems += item['cantidad'] as int;
+                }
+              }
+            }
+          }
+
+          DateTime orderDate = DateTime.now();
+          if (value['timestamp'] != null) {
+            try {
+              orderDate = DateTime.parse(value['timestamp']);
+            } catch (_) {/* ignore */}
+          }
+
+          // 🔥 EXTRAE tiempo_prep de Firebase
+          String completedTime = value['tiempo_prep']?.toString() ?? 'N/A';
+
+          ordersList.add({
+            'id': id,
+            'date': orderDate,
+            'customer': value['cliente']?.toString() ?? 'N/A',
+            'table': 'Cliente',
+            'items': itemNames,
+            'totalItems': totalItems,
+            'completedTime': completedTime, // ✅ Ahora tiene el valor real
+            'status': status,
+          });
+        }
+      });
+    }
+
+    ordersList.sort((a, b) => b['date'].compareTo(a['date']));
+    return ordersList;
+  }
+
+  // ... (Resto de la lógica de getters y funciones auxiliares)
 
   List<Map<String, dynamic>> get filteredOrders {
-    return historyOrders.where((order) {
+    return _rawHistoryOrders.where((order) {
       bool matchesDate = selectedDate == null ||
           DateUtils.isSameDay(order['date'], selectedDate);
 
+      // Filtrado por producto usando la lista de nombres
       bool matchesProduct = selectedProduct == null ||
-          (order['items'] as List).any((item) =>
+          (order['items'] as List<String>).any((item) =>
               item.toLowerCase().contains(selectedProduct!.toLowerCase()));
 
       bool matchesSearch = searchQuery.isEmpty ||
           order['id'].toLowerCase().contains(searchQuery.toLowerCase()) ||
-          order['customer'].toLowerCase().contains(searchQuery.toLowerCase()) ||
-          order['table'].toLowerCase().contains(searchQuery.toLowerCase());
+          order['customer'].toLowerCase().contains(searchQuery.toLowerCase());
 
       return matchesDate && matchesProduct && matchesSearch;
     }).toList();
@@ -136,233 +172,82 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Icon(Icons.history),
-            SizedBox(width: 8),
-            Text('Historial de Pedidos para: ${widget.restaurantName}'),
-          ],
-        ),
-        backgroundColor: Colors.deepOrange,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.file_download),
-            onPressed: _exportReport,
-            tooltip: 'Exportar reporte',
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Barra de búsqueda y filtros
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
-                  spreadRadius: 1,
-                  blurRadius: 5,
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Barra de búsqueda
-                TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Buscar por ID, cliente o mesa...',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      searchQuery = value;
-                    });
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // Filtros
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _selectDate,
-                        icon: const Icon(Icons.calendar_today),
-                        label: Text(
-                          selectedDate == null
-                              ? 'Fecha'
-                              : DateFormat('dd/MM/yyyy').format(selectedDate!),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: selectedDate != null
-                              ? Colors.deepOrange.withOpacity(0.1)
-                              : null,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          _showProductFilterDialog();
-                        },
-                        icon: const Icon(Icons.restaurant),
-                        label: Text(
-                          selectedProduct ?? 'Producto',
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: selectedProduct != null
-                              ? Colors.deepOrange.withOpacity(0.1)
-                              : null,
-                        ),
-                      ),
-                    ),
-                    if (selectedDate != null || selectedProduct != null)
-                      IconButton(
-                        onPressed: _clearFilters,
-                        icon: const Icon(Icons.clear),
-                        tooltip: 'Limpiar filtros',
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Estadísticas rápidas
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    'Total',
-                    '${filteredOrders.length}',
-                    Icons.receipt_long,
-                    Colors.blue,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildStatCard(
-                    'Tiempo Promedio',
-                    '22 min',
-                    Icons.timer,
-                    Colors.orange,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildStatCard(
-                    'Items',
-                    '${_calculateTotalItems()}',
-                    Icons.shopping_bag,
-                    Colors.green,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Lista de pedidos
-          Expanded(
-            child: filteredOrders.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.search_off,
-                            size: 64, color: Colors.grey[400]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No se encontraron pedidos',
-                          style:
-                              TextStyle(color: Colors.grey[600], fontSize: 16),
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: _clearFilters,
-                          child: const Text('Limpiar filtros'),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: filteredOrders.length,
-                    itemBuilder: (context, index) {
-                      final order = filteredOrders[index];
-                      return _buildHistoryCard(order);
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
+  // 2. Modificación de _showProductFilterDialog para usar Firebase StreamBuilder
   void _showProductFilterDialog() {
-    final products = [
-      'Pizza Napolitana',
-      'Pizza Margarita',
-      'Pasta Carbonara',
-      'Ensalada César',
-      'Hamburguesa',
-      'Sushi variado',
-      'Tiramisu',
-    ];
-
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Filtrar por Producto'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: products.length,
-            itemBuilder: (context, index) {
-              final product = products[index];
-              return ListTile(
-                title: Text(product),
-                selected: selectedProduct == product,
-                onTap: () {
-                  setState(() {
-                    selectedProduct = product;
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Filtrar por Producto'),
+          content: SizedBox(
+            width: double.maxFinite,
+            // StreamBuilder para obtener la lista de productos en tiempo real
+            child: StreamBuilder<DatabaseEvent>(
+              stream: productsRef.onValue,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+
+                // Mapeo para obtener solo los nombres ('nombre')
+                List<String> products = [];
+                final rawValue = snapshot.data?.snapshot.value;
+
+                if (rawValue != null && rawValue is Map) {
+                  rawValue.forEach((key, value) {
+                    if (value is Map && value['nombre'] is String) {
+                      products.add(value['nombre'] as String);
+                    }
                   });
-                  Navigator.pop(context);
-                },
-              );
-            },
+                }
+
+                if (products.isEmpty) {
+                  return const Center(
+                      child: Text('No hay productos disponibles.'));
+                }
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: products.length,
+                  itemBuilder: (context, index) {
+                    final product = products[index];
+                    return ListTile(
+                      title: Text(product),
+                      selected: selectedProduct == product,
+                      onTap: () {
+                        setState(() {
+                          selectedProduct = product;
+                        });
+                        // Cierra el diálogo después de la selección
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                );
+              },
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              setState(() {
-                selectedProduct = null;
-              });
-              Navigator.pop(context);
-            },
-            child: const Text('Limpiar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  selectedProduct = null;
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('Limpiar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -435,11 +320,8 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
             const SizedBox(height: 4),
             Row(
               children: [
-                Icon(Icons.table_restaurant, size: 14, color: Colors.grey[600]),
-                const SizedBox(width: 4),
-                Text(order['table']),
-                const SizedBox(width: 12),
-                Icon(Icons.person, size: 14, color: Colors.grey[600]),
+                // Solo mostramos el nombre del cliente
+                const Icon(Icons.person, size: 14, color: Colors.grey),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
@@ -535,6 +417,191 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
                   ],
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Aquí se utiliza ordersRef.onValue del código anterior para cargar los datos de la tabla.
+    return Scaffold(
+      backgroundColor: Color.fromARGB(255, 21, 21, 21),
+      body: Column(
+        children: [
+          // Barra de búsqueda y filtros
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color.fromARGB(255, 21, 21, 21),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 1,
+                  blurRadius: 5,
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // Barra de búsqueda (ocupa el espacio restante)
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por ID o cliente ...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        searchQuery = value;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Botón de filtro por fecha (solo icono)
+                IconButton(
+                  onPressed: _selectDate,
+                  icon: const Icon(Icons.calendar_today),
+                  tooltip: selectedDate == null
+                      ? 'Filtrar por fecha'
+                      : DateFormat('dd/MM/yyyy').format(selectedDate!),
+                  style: IconButton.styleFrom(
+                    backgroundColor: selectedDate != null
+                        ? Colors.deepOrange.withOpacity(0.2)
+                        : Colors.grey[800],
+                    foregroundColor:
+                        selectedDate != null ? Colors.deepOrange : Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Botón de filtro por producto (solo icono)
+                IconButton(
+                  onPressed: _showProductFilterDialog,
+                  icon: const Icon(Icons.restaurant),
+                  tooltip: selectedProduct ?? 'Filtrar por producto',
+                  style: IconButton.styleFrom(
+                    backgroundColor: selectedProduct != null
+                        ? Colors.deepOrange.withOpacity(0.2)
+                        : Colors.grey[800],
+                    foregroundColor: selectedProduct != null
+                        ? Colors.deepOrange
+                        : Colors.white,
+                  ),
+                ),
+
+                // Botón para limpiar filtros
+                if (selectedDate != null || selectedProduct != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: IconButton(
+                      onPressed: _clearFilters,
+                      icon: const Icon(Icons.clear),
+                      tooltip: 'Limpiar filtros',
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.red.withOpacity(0.2),
+                        foregroundColor: Colors.red,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // Estadísticas rápidas
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    'Total',
+                    '${filteredOrders.length}',
+                    Icons.receipt_long,
+                    Colors.blue,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatCard(
+                    'Tiempo Promedio',
+                    'N/A', // Este valor requeriría lógica avanzada de DB
+                    Icons.timer,
+                    Colors.orange,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatCard(
+                    'Items',
+                    '${_calculateTotalItems()}',
+                    Icons.shopping_bag,
+                    Colors.green,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // StreamBuilder para la conexión a las órdenes y aplicación del filtro principal
+          Expanded(
+            child: StreamBuilder<DatabaseEvent>(
+              stream: ordersRef.onValue,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                      child: Text('Error de conexión: ${snapshot.error}'));
+                }
+
+                //  Mapear y actualizar _rawHistoryOrders
+                _rawHistoryOrders = _mapSnapshotToHistoryOrders(snapshot);
+
+                if (filteredOrders.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off,
+                            size: 64, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No se encontraron pedidos terminados que coincidan con los filtros.',
+                          style:
+                              TextStyle(color: Colors.grey[600], fontSize: 16),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: _clearFilters,
+                          child: const Text('Limpiar filtros'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: filteredOrders.length,
+                  itemBuilder: (context, index) {
+                    final order = filteredOrders[index];
+                    return _buildHistoryCard(order);
+                  },
+                );
+              },
             ),
           ),
         ],

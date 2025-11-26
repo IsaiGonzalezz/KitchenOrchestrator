@@ -115,24 +115,11 @@ class _UsersViewState extends State<UsersView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.orange.shade50,
-      appBar: AppBar(
-        title: Text('Gestión de Usuarios para ${widget.restaurantName}'),
-        centerTitle: true,
-        backgroundColor: const Color(0xFFFF6F00),
-      ),
+      backgroundColor: Color.fromARGB(255, 21, 21, 21),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const Text(
-              "Usuarios registrados",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.deepOrange,
-              ),
-            ),
             const SizedBox(height: 12),
             Expanded(
               child: usuarios.isEmpty
@@ -151,8 +138,7 @@ class _UsersViewState extends State<UsersView> {
               icon: const Icon(Icons.add),
               label: const Text("Agregar usuario"),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF6F00),
-                foregroundColor: Colors.white,
+                backgroundColor: Colors.orangeAccent,
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),

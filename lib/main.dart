@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+
+// Firebase
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -7,7 +10,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 // Vistas
 import 'views/kitchen/kitchen_orders_panel.dart';
-import 'views/kitchen/kitchen_order_detail.dart';
 import 'views/kitchen/kitchen_order_history.dart';
 import 'views/login/login_view.dart';
 import 'views/crm/dashboard/dashboard_view.dart';
@@ -30,16 +32,29 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Kitchen Orchestrator',
+
+      // Localización (versión 2)
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('es', 'ES'),
+      ],
+
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
+
       initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
         '/home': (context) => const NavigationHome(),
       },
+
       debugShowCheckedModeBanner: false,
     );
   }
@@ -74,21 +89,18 @@ class _NavigationHomeState extends State<NavigationHome> {
     }
 
     try {
-      final ref = FirebaseDatabase.instance.ref('user_profiles').child(user.uid);
+      final ref =
+          FirebaseDatabase.instance.ref('user_profiles').child(user.uid);
       final snapshot = await ref.get();
 
       if (snapshot.exists) {
         final data = snapshot.value as Map<dynamic, dynamic>;
+
         setState(() {
           _restaurantName = data['restaurantName'];
           _role = data['role'];
           _userEmail = user.email;
           _isLoading = false;
-
-          // ⚠️ Si el rol no es Gerente y el índice apunta a "Usuarios", lo corregimos
-          if (_role != "Gerente" && _selectedIndex == 4) {
-            _selectedIndex = 0;
-          }
         });
       } else {
         setState(() => _isLoading = false);
@@ -105,8 +117,12 @@ class _NavigationHomeState extends State<NavigationHome> {
         title: const Text('Cerrar Sesión'),
         content: const Text('¿Estás seguro de que deseas salir?'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Salir')),
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Salir')),
         ],
       ),
     );
@@ -121,7 +137,8 @@ class _NavigationHomeState extends State<NavigationHome> {
       await FirebaseAuth.instance.signOut();
       await _storage.delete(key: 'saved_email');
       if (mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil('/login', (route) => false);
       }
     } catch (e) {}
   }
@@ -140,39 +157,117 @@ class _NavigationHomeState extends State<NavigationHome> {
       );
     }
 
-    final List<Widget> pages = _role == "Gerente"
-        ? [
-            DashboardView(restaurantName: _restaurantName ?? 'Error', role: _role ?? 'Error'),
-            KitchenOrdersPanel(restaurantName: _restaurantName ?? 'Error'),
-            KitchenOrderHistory(restaurantName: _restaurantName ?? 'Error'),
-            ProductsView(restaurantName: _restaurantName ?? 'Error'),
-            UsersView(restaurantName: _restaurantName ?? 'Error'),
-          ]
-        : [
-            DashboardView(restaurantName: _restaurantName ?? 'Error', role: _role ?? 'Error'),
-            KitchenOrdersPanel(restaurantName: _restaurantName ?? 'Error'),
-            KitchenOrderHistory(restaurantName: _restaurantName ?? 'Error'),
-            ProductsView(restaurantName: _restaurantName ?? 'Error'),
-          ];
+    if (_role == null || _restaurantName == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Error de Permisos')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('No pudimos cargar tu perfil de restaurante.'),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _performSignOut,
+                child: const Text('Volver a Iniciar Sesión'),
+              )
+            ],
+          ),
+        ),
+      );
+    }
 
-    final List<BottomNavigationBarItem> navItems = [
-      const BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
-      const BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: 'Órdenes'),
-      const BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Historial'),
-      const BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Productos'),
-      if (_role == "Gerente")
-        const BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Usuarios'),
-    ];
+    final List<Widget> pages;
+    final List<String> titles;
+    final List<BottomNavigationBarItem> navBarItems;
+
+    if (_role == 'Gerente') {
+      pages = [
+        DashboardView(restaurantName: _restaurantName!, role: _role!),
+        KitchenOrdersPanel(restaurantName: _restaurantName!),
+        KitchenOrderHistory(restaurantName: _restaurantName!),
+        ProductsView(restaurantName: _restaurantName!),
+        UsersView(restaurantName: _restaurantName!),
+      ];
+
+      titles = [
+        'Dashboard',
+        'Panel de Órdenes',
+        'Historial',
+        'Productos',
+        'Usuarios',
+      ];
+
+      navBarItems = const [
+        BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+        BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: 'Órdenes'),
+        BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Historial'),
+        BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Productos'),
+        BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Usuarios'),
+      ];
+    } else if (_role == 'Chef') {
+      pages = [
+        KitchenOrdersPanel(restaurantName: _restaurantName!),
+        KitchenOrderHistory(restaurantName: _restaurantName!),
+        ProductsView(restaurantName: _restaurantName!)
+      ];
+
+      titles = [
+        'Panel de Órdenes',
+        'Historial',
+        'Productos',
+      ];
+
+      navBarItems = const [
+        BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: 'Órdenes'),
+        BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Historial'),
+        BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Productos'),
+      ];
+    } else {
+      pages = [
+        const Center(child: Text('No tienes vistas asignadas.')),
+      ];
+      titles = ['Inicio'];
+      navBarItems = const [
+        BottomNavigationBarItem(
+            icon: Icon(Icons.do_not_disturb), label: 'Error'),
+      ];
+    }
+
+    if (_selectedIndex >= pages.length) {
+      _selectedIndex = 0;
+    }
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: const Color.fromARGB(255, 21, 21, 21),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(navItems[_selectedIndex].label ?? ''),
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w500,
+                ),
+                children: [
+                  TextSpan(
+                    text: titles[_selectedIndex],
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  const TextSpan(text: ' ', style: TextStyle(color: Colors.white)),
+                  TextSpan(
+                    text: _restaurantName!,
+                    style: const TextStyle(
+                        color: Color.fromARGB(255, 248, 161, 69)),
+                  ),
+                ],
+              ),
+            ),
             Text(
-              '${_restaurantName ?? 'Sin Restaurante'} (${_role ?? 'Sin Rol'})',
-              style: Theme.of(context).textTheme.bodySmall,
+              '($_role)',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.white70,
+                  ),
             ),
           ],
         ),
@@ -184,14 +279,17 @@ class _NavigationHomeState extends State<NavigationHome> {
           ),
         ],
       ),
+
       body: pages[_selectedIndex],
+
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.deepPurple,
+        backgroundColor: const Color.fromARGB(255, 21, 21, 21),
+        selectedItemColor: const Color.fromARGB(255, 248, 161, 69),
         unselectedItemColor: Colors.grey,
-        items: navItems,
+        items: navBarItems,
       ),
     );
   }
