@@ -78,7 +78,7 @@ class _KitchenOrderDetailState extends State<KitchenOrderDetail> {
     }
   }
 
-  // FUNCIONES DE ACCIÓN (Se mantienen para actualizar el estado en Firebase)
+  // FUNCIONES DE ACCIÓN
   Future<void> _startPreparation() async {
     final now = DateTime.now().toIso8601String();
     await orderRef.update({

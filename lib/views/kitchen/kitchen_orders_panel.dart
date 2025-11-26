@@ -257,12 +257,12 @@ class _KitchenOrdersPanelState extends State<KitchenOrdersPanel> {
     return Card(
         margin: const EdgeInsets.only(bottom: 12),
         child: InkWell(
-          // 💡 CAMBIO: Usamos InkWell para detectar el toque
+          // Usamos InkWell para detectar el toque
           onTap: () {
-            // 💡 NUEVA NAVEGACIÓN: Abrir la vista de detalle de la orden
+            // Abrir la vista de detalle de la orden
             Navigator.pushNamed(
               context,
-              '/kitchen/order-detail', // Asegúrate de que esta ruta esté definida en tu main.dart
+              '/kitchen/order-detail', // Ruta  definida en tu main.dart
               arguments: {
                 'orderId': order['id'],
                 'restaurantName': widget.restaurantName,
