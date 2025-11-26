@@ -53,15 +53,21 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
 
         if (!exclusionStatus.contains(status)) {
           List<String> itemNames = [];
+          // 🔥 CAMBIO: Usaremos un Map para contar ítems y obtener la cantidad total más precisa
+          Map<String, int> rawItems = {};
           int totalItems = 0;
+
           if (value['items'] is List) {
             for (var item in value['items']) {
               if (item is Map) {
-                if (item['producto'] is String) {
-                  itemNames.add(item['producto']);
-                }
-                if (item['cantidad'] is int) {
-                  totalItems += item['cantidad'] as int;
+                String productName = item['producto']?.toString() ?? '';
+                int quantity = (item['cantidad'] as int?) ?? 0;
+
+                if (productName.isNotEmpty) {
+                  itemNames.add(productName);
+                  rawItems[productName] =
+                      quantity; // Guardar cantidad por producto
+                  totalItems += quantity; // Sumar la cantidad total
                 }
               }
             }
@@ -74,17 +80,17 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
             } catch (_) {/* ignore */}
           }
 
-          // 🔥 EXTRAE tiempo_prep de Firebase
+          // EXTRAE tiempo_prep de Firebase
           String completedTime = value['tiempo_prep']?.toString() ?? 'N/A';
 
           ordersList.add({
             'id': id,
             'date': orderDate,
             'customer': value['cliente']?.toString() ?? 'N/A',
-            'table': 'Cliente',
             'items': itemNames,
+            'rawItems': rawItems, // ✅ AGREGADO: Mapa de {producto: cantidad}
             'totalItems': totalItems,
-            'completedTime': completedTime, // ✅ Ahora tiene el valor real
+            'completedTime': completedTime,
             'status': status,
           });
         }
@@ -256,6 +262,49 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
         0, (sum, order) => sum + (order['totalItems'] as int));
   }
 
+  // ✅ NUEVA FUNCIÓN: Calcula el producto más vendido en la lista filtrada
+  String _calculateMostSoldProduct() {
+    if (filteredOrders.isEmpty) {
+      return 'N/A';
+    }
+
+    final Map<String, int> productCounts = {};
+
+    // 1. Recorrer todas las órdenes filtradas
+    for (var order in filteredOrders) {
+      // 2. Recorrer el mapa 'rawItems' ({producto: cantidad})
+      if (order['rawItems'] is Map<String, int>) {
+        (order['rawItems'] as Map<String, int>)
+            .forEach((productName, quantity) {
+          // 3. Sumar la cantidad de cada producto
+          productCounts.update(
+            productName,
+            (value) => value + quantity,
+            ifAbsent: () => quantity,
+          );
+        });
+      }
+    }
+
+    if (productCounts.isEmpty) {
+      return 'N/A';
+    }
+
+    // 4. Encontrar el producto con la mayor cantidad
+    String mostSoldProduct = 'N/A';
+    int maxCount = 0;
+
+    productCounts.forEach((productName, count) {
+      if (count > maxCount) {
+        maxCount = count;
+        mostSoldProduct = productName;
+      }
+    });
+
+    // Devuelve el producto más vendido y su cantidad
+    return '$mostSoldProduct ($maxCount)';
+  }
+
   Widget _buildStatCard(
       String label, String value, IconData icon, Color color) {
     return Container(
@@ -275,13 +324,18 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
         children: [
           Icon(icon, color: color, size: 28),
           const SizedBox(height: 8),
+          // ✅ Cambio: Usamos una lógica de truncado para valores muy largos (Producto más vendido)
           Text(
             value,
+            textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 20,
+              fontSize:
+                  value.length > 15 ? 14 : 20, // Ajustar fuente si es largo
               fontWeight: FontWeight.bold,
               color: color,
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
           Text(
             label,
@@ -374,21 +428,30 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
                   ),
                 ),
                 const SizedBox(height: 8),
+                // Asumiendo que 'rawItems' tiene {producto: cantidad}
                 ...List.generate(
-                  (order['items'] as List).length,
-                  (index) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.fiber_manual_record, size: 8),
-                        const SizedBox(width: 8),
-                        Text(order['items'][index]),
-                      ],
-                    ),
-                  ),
+                  (order['rawItems'] as Map<String, int>).length,
+                  (index) {
+                    final itemName = (order['rawItems'] as Map<String, int>)
+                        .keys
+                        .toList()[index];
+                    final itemQuantity = (order['rawItems'] as Map<String, int>)
+                        .values
+                        .toList()[index];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Text('$itemQuantity x'), // Mostrar la cantidad
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(itemName)),
+                        ],
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
-                Row(
+                /*Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     OutlinedButton.icon(
@@ -415,7 +478,7 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
                       label: const Text('Reimprimir'),
                     ),
                   ],
-                ),
+                ),*/
               ],
             ),
           ),
@@ -428,7 +491,7 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
   Widget build(BuildContext context) {
     // Aquí se utiliza ordersRef.onValue del código anterior para cargar los datos de la tabla.
     return Scaffold(
-      backgroundColor: Color.fromARGB(255, 21, 21, 21),
+      backgroundColor: const Color.fromARGB(255, 21, 21, 21),
       body: Column(
         children: [
           // Barra de búsqueda y filtros
@@ -518,42 +581,7 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
             ),
           ),
 
-          // Estadísticas rápidas
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    'Total',
-                    '${filteredOrders.length}',
-                    Icons.receipt_long,
-                    Colors.blue,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildStatCard(
-                    'Tiempo Promedio',
-                    'N/A', // Este valor requeriría lógica avanzada de DB
-                    Icons.timer,
-                    Colors.orange,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildStatCard(
-                    'Items',
-                    '${_calculateTotalItems()}',
-                    Icons.shopping_bag,
-                    Colors.green,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // StreamBuilder para la conexión a las órdenes y aplicación del filtro principal
+          // StreamBuilder envuelve tanto las estadísticas como la lista
           Expanded(
             child: StreamBuilder<DatabaseEvent>(
               stream: ordersRef.onValue,
@@ -567,39 +595,88 @@ class _KitchenOrderHistoryState extends State<KitchenOrderHistory> {
                       child: Text('Error de conexión: ${snapshot.error}'));
                 }
 
-                //  Mapear y actualizar _rawHistoryOrders
+                // 1. Mapear y actualizar _rawHistoryOrders con los datos (¡AQUÍ ES CLAVE!)
                 _rawHistoryOrders = _mapSnapshotToHistoryOrders(snapshot);
 
-                if (filteredOrders.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.search_off,
-                            size: 64, color: Colors.grey[400]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No se encontraron pedidos terminados que coincidan con los filtros.',
-                          style:
-                              TextStyle(color: Colors.grey[600], fontSize: 16),
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: _clearFilters,
-                          child: const Text('Limpiar filtros'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                // El resto de la lógica de build se moverá aquí DENTRO del builder
 
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: filteredOrders.length,
-                  itemBuilder: (context, index) {
-                    final order = filteredOrders[index];
-                    return _buildHistoryCard(order);
-                  },
+                return Column(
+                  // <-- Añadimos un Column para contener las tarjetas y la lista
+                  children: [
+                    // Estadísticas rápidas (Ahora dentro del StreamBuilder)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          // 1. Tarjeta de Total de Pedidos (Órdenes)
+                          Expanded(
+                            child: _buildStatCard(
+                              'Total Pedidos',
+                              '${filteredOrders.length}',
+                              Icons.receipt_long,
+                              Colors.blue,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+
+                          // 2. Tarjeta de Producto Más Vendido
+                          Expanded(
+                            child: _buildStatCard(
+                              'Producto + Vendido',
+                              _calculateMostSoldProduct(),
+                              Icons.star,
+                              Colors.orange,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+
+                          // 3. Tarjeta de Total de Ítems
+                          Expanded(
+                            child: _buildStatCard(
+                              'Total Items',
+                              '${_calculateTotalItems()}',
+                              Icons.shopping_bag,
+                              Colors.green,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Lista de Órdenes (Ahora dentro del StreamBuilder)
+                    Expanded(
+                      child: filteredOrders.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.search_off,
+                                      size: 64, color: Colors.grey[400]),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No se encontraron pedidos terminados que coincidan con los filtros.',
+                                    style: TextStyle(
+                                        color: Colors.grey[600], fontSize: 16),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextButton(
+                                    onPressed: _clearFilters,
+                                    child: const Text('Limpiar filtros'),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: filteredOrders.length,
+                              itemBuilder: (context, index) {
+                                final order = filteredOrders[index];
+                                return _buildHistoryCard(order);
+                              },
+                            ),
+                    ),
+                  ],
                 );
               },
             ),

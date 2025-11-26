@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -11,6 +12,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 // Vistas
 import 'views/kitchen/kitchen_orders_panel.dart';
 import 'views/kitchen/kitchen_order_history.dart';
+import 'views/kitchen/kitchen_order_detail.dart';
 import 'views/login/login_view.dart';
 import 'views/crm/dashboard/dashboard_view.dart';
 import 'views/crm/products/products_view.dart';
@@ -55,6 +57,58 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const NavigationHome(),
       },
 
+      //Ruta dinámica
+      onGenerateRoute: (settings) {
+        if (settings.name == '/kitchen/order-detail') {
+          // Extraemos los argumentos que enviamos desde kitchen_orders_panel.dart
+          final args = settings.arguments as Map<String, dynamic>;
+          final orderId = args['orderId'] as String;
+          final restaurantName = args['restaurantName'] as String;
+
+          //PageRouteBuilder  animación de deslizamiento
+          return PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) {
+              return Align(
+                alignment: Alignment.centerRight,
+                child: SizedBox(
+                  //Ancho 500 píxeles de ancho.
+                  width: 500,
+                  child: KitchenOrderDetail(
+                    orderId: orderId,
+                    restaurantName: restaurantName,
+                  ),
+                ),
+              );
+            },
+
+            // El tiempo de la animación
+            transitionDuration: const Duration(milliseconds: 300),
+            // La función que define la animación
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              const begin =
+                  Offset(1.0, 0.0); // Inicia fuera de la pantalla (derecha)
+              const end = Offset.zero; // Termina en posición normal
+              const curve = Curves.easeOut; // Animación suave
+
+              final tween =
+                  Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+              // Retorna un SlideTransition que aplica la animación al 'child'
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
+            },
+            // Fondo oscuro (Overlay oscuro)
+            opaque: false, // Permite que el contenido subyacente se vea
+            barrierDismissible: true, // Permite cerrar al hacer clic fuera
+            barrierColor: Colors.black54, // Color del overlay oscuro
+          );
+        }
+        // Si no es la ruta de detalle, volvemos a null para usar el ruteo normal.
+        return null;
+      },
       debugShowCheckedModeBanner: false,
     );
   }
@@ -198,10 +252,12 @@ class _NavigationHomeState extends State<NavigationHome> {
       ];
 
       navBarItems = const [
-        BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard), label: 'Dashboard'),
         BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: 'Órdenes'),
         BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Historial'),
-        BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Productos'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_cart), label: 'Productos'),
         BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Usuarios'),
       ];
     } else if (_role == 'Chef') {
@@ -220,7 +276,8 @@ class _NavigationHomeState extends State<NavigationHome> {
       navBarItems = const [
         BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: 'Órdenes'),
         BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Historial'),
-        BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Productos'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_cart), label: 'Productos'),
       ];
     } else {
       pages = [
@@ -254,7 +311,8 @@ class _NavigationHomeState extends State<NavigationHome> {
                     text: titles[_selectedIndex],
                     style: const TextStyle(color: Colors.white),
                   ),
-                  const TextSpan(text: ' ', style: TextStyle(color: Colors.white)),
+                  const TextSpan(
+                      text: ' ', style: TextStyle(color: Colors.white)),
                   TextSpan(
                     text: _restaurantName!,
                     style: const TextStyle(
@@ -279,9 +337,7 @@ class _NavigationHomeState extends State<NavigationHome> {
           ),
         ],
       ),
-
       body: pages[_selectedIndex],
-
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
