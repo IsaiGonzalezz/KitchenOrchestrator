@@ -83,18 +83,11 @@ class _ProductsViewState extends State<ProductsView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.yellow[50],
-      appBar: AppBar(
-        title: Text('Gestión de Productos: ${widget.restaurantName}'),
-        centerTitle: true,
-        backgroundColor: Colors.orangeAccent,
-        elevation: 4,
-      ),
+      backgroundColor: Color.fromARGB(255, 21, 21, 21),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const Text("Listado de productos", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.orangeAccent)),
             const SizedBox(height: 12),
             Expanded(
               child: ListView(

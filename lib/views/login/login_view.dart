@@ -147,13 +147,7 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       body: Container(
         // ... (El fondo degradado se queda igual) ...
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.orange.shade100, Colors.deepOrange.shade100],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
+        color: Color.fromARGB(255, 21, 21, 21),
         child: Center(
           child: SingleChildScrollView(
             child: ConstrainedBox(
